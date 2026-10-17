@@ -7,6 +7,10 @@ android {
     namespace = "com.vpaypro.monitor"
     compileSdk = 34
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.vpaypro.monitor"
         minSdk = 21
