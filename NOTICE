@@ -1,0 +1,30 @@
+V支付监控端（vpaypro Monitor）
+Copyright 2026 rainbow-boy-max (秒囤兔)
+
+This product is a derivative work and includes software developed by
+third parties. The following attributions are provided in accordance
+with the Apache License, Version 2.0, Section 4(d).
+
+====================================================================
+1. shinian-a/Vmq-App  (License: Apache-2.0)
+   https://github.com/shinian-a/Vmq-App
+   Baseline for the background keep-alive subsystem and notification
+   parsing rules (WeChat / Alipay amount extraction).
+   Copyright (c) shinian-a
+====================================================================
+2. szvone/vmqApk  (License: MIT)
+   https://github.com/szvone/vmqApk
+   Original V免签 Android monitor client.
+   Copyright (c) szvone
+====================================================================
+3. ZXing (com.google.zxing)  (License: Apache-2.0)
+   QR-code scanning components.
+   Copyright (c) ZXing Authors
+====================================================================
+4. AndroidX / OkHttp / Material Components  (License: Apache-2.0)
+   Copyright (c) The Android Open Source Project / Square, Inc. / Google
+====================================================================
+
+The MIT-licensed portions remain under the MIT License (see LICENSE-MIT).
+All other portions of this project are licensed under the Apache License,
+Version 2.0 (see LICENSE).
