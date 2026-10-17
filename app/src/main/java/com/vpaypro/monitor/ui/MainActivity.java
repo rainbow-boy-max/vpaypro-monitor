@@ -1334,8 +1334,8 @@ public class MainActivity extends AppCompatActivity implements OnLongClickListen
             Bundle bundle = data.getExtras();
             String scanResult = bundle.getString(AppConstants.INTENT_EXTRA_KEY_QR_SCAN);
 
-            String[] tmp = scanResult.split("/");
-            if (tmp.length != 2) {
+            String[] tmp = parseConfig(scanResult);
+            if (tmp == null) {
                 Toast.makeText(MainActivity.this, "二维码错误，请您扫描网站上显示的二维码!", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -1405,8 +1405,8 @@ public class MainActivity extends AppCompatActivity implements OnLongClickListen
             public void onClick(DialogInterface dialog, int which) {
 
                 String scanResult = inputServer.getText().toString();
-                String[] tmp = scanResult.split("/");
-                if (tmp.length != 2) {
+                String[] tmp = parseConfig(scanResult);
+                if (tmp == null) {
                     Toast.makeText(MainActivity.this, "数据不能为空或数据错误!", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -1892,5 +1892,25 @@ public class MainActivity extends AppCompatActivity implements OnLongClickListen
         cm.setSaturation(gray);//灰度效果 取值gray（0 - 1）  0是灰色，1取消灰色
         paint.setColorFilter(new ColorMatrixColorFilter(cm));
         decorView.setLayerType(View.LAYER_TYPE_HARDWARE, paint);
+    }
+
+    /**
+     * 解析配置串，兼容两种写法：
+     *   https://域名/密钥   （控制台二维码）
+     *   http://域名/密钥
+     *   域名/密钥            （旧版格式）
+     * 规则：以最后一个 "/" 为界，前面是 host，后面是 key。
+     */
+    private static String[] parseConfig(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+        int idx = s.lastIndexOf('/');
+        if (idx <= 0 || idx >= s.length() - 1) return null;
+        String host = s.substring(0, idx).trim();
+        String key = s.substring(idx + 1).trim();
+        if (host.isEmpty() || key.isEmpty()) return null;
+        if (key.contains("/") || key.contains(" ")) return null;
+        return new String[]{host, key};
     }
 }
