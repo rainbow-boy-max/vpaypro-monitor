@@ -244,7 +244,7 @@ public class SettingActivity extends AppCompatActivity {
     // 检测更新（改为查询商户自己的服务端，不再访问任何第三方域名）
     public void ver_sion(View v) {
         showLoadingDialog();
-        UpdateChecker.checkAsync(this, new UpdateChecker.Callback() {
+        UpdateChecker.checkAsync(this, new UpdateChecker.Listener() {
             @Override
             public void onResult(final boolean hasNew, final String newVersion, final String url) {
                 runOnUiThread(new Runnable() {

@@ -33,7 +33,7 @@ public final class UpdateChecker {
             .readTimeout(8, TimeUnit.SECONDS)
             .build();
 
-    public interface Callback {
+    public interface Listener {
         /** hasNew=false 时 version/url 可能为空 */
         void onResult(boolean hasNew, String version, String url);
     }
@@ -41,7 +41,7 @@ public final class UpdateChecker {
     private UpdateChecker() {
     }
 
-    public static void checkAsync(Context ctx, final Callback cb) {
+    public static void checkAsync(Context ctx, final Listener cb) {
         SharedPreferences sp = ctx.getApplicationContext()
                 .getSharedPreferences(AppConstants.SP_NAME_CONFIG, Context.MODE_PRIVATE);
         final String host = sp.getString(AppConstants.SP_KEY_HOST, "");
