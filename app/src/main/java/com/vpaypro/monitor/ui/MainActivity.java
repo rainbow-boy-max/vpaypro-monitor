@@ -217,6 +217,8 @@ public class MainActivity extends AppCompatActivity implements OnLongClickListen
             txthost.setText(" 通知地址：" + host);
             txtkey.setText(" 通讯密钥：" + key);
             isOk = true;
+            //拉取平台公告（内容变化时弹一次）
+            checkNotice();
         }
 
         Log.d(TAG, "========== MainActivity onCreate 完成 ==========");
@@ -1412,6 +1414,70 @@ public class MainActivity extends AppCompatActivity implements OnLongClickListen
         return true;
     }
 
+
+    /**
+     * 拉取平台公告：内容与上次显示的不同才弹窗，避免每次启动都打扰
+     */
+    private void checkNotice() {
+        String t = String.valueOf(new Date().getTime());
+        String sign = md5(t + key);
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url(AppConstants.baseUrl(host) + "/appHeart?t=" + t + "&sign=" + sign)
+                .method("GET", null).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.w(TAG, "公告拉取失败：" + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                String notice = "";
+                try {
+                    String str = response.body() == null ? "" : response.body().string();
+                    JSONObject root = new JSONObject(str);
+                    if (root.optInt("code", 0) == 1) {
+                        JSONObject data = root.optJSONObject("data");
+                        if (data != null) {
+                            notice = data.optString("notice", "").trim();
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "公告解析失败", e);
+                } finally {
+                    response.close();
+                }
+                if (notice.isEmpty()) {
+                    return;
+                }
+                SharedPreferences sp = getSharedPreferences("shinian", MODE_PRIVATE);
+                if (notice.equals(sp.getString("last_notice", ""))) {
+                    return;
+                }
+                sp.edit().putString("last_notice", notice).apply();
+                showNoticeDialog(notice);
+            }
+        });
+    }
+
+    private void showNoticeDialog(final String notice) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing()) {
+                    return;
+                }
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("平台公告")
+                        .setMessage(notice)
+                        .setIcon(R.drawable.app_gx)
+                        .setCancelable(true)
+                        .setPositiveButton("我知道了", null)
+                        .show();
+            }
+        });
+    }
 
     //MD5取值
     public String md5(String string) {
