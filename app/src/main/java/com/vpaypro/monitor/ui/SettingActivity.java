@@ -22,15 +22,7 @@ import com.vpaypro.monitor.service.DaemonService;
 import com.vpaypro.monitor.service.NativeDaemonService;
 import com.vpaypro.monitor.service.PlayerMusicService;
 import com.vpaypro.monitor.util.ScreenManager;
-import org.json.JSONObject;
-
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-
-import static com.vpaypro.monitor.ui.MainActivity.getHttpURLConnection;
+import com.vpaypro.monitor.util.UpdateChecker;
 
 
 public class SettingActivity extends AppCompatActivity {
@@ -40,19 +32,12 @@ public class SettingActivity extends AppCompatActivity {
     // 延迟时间常量
     private static final int RESTART_DELAY_OPEN = 2000;  // 开启时延迟2秒
     private static final int RESTART_DELAY_CLOSE = 1500; // 关闭时延迟1.5秒
-    private static final int HTTP_TIMEOUT = 8000;
 
     // 动态注册锁屏等广播
     private ScreenReceiverUtil mScreenListener;
     // 1 像素 Activity 管理类
     private ScreenManager mScreenManager;
     private TextView version;
-    private int code;
-    private String ver;
-    private String uplog;
-    private String upurl;
-    private int Version; // 当前软件版本号
-    private int versions; // 最新软件版本号
     private Switch state_switch;
     private String state_swich;
 
@@ -209,34 +194,21 @@ public class SettingActivity extends AppCompatActivity {
 
     /**
      * 显示更新对话框
+     * 下载地址只来自商户自己的服务端，且已在 UpdateChecker 里校验过是 https
      */
-    private void showUpdateDialog(String uplog, String upurl) {
-        AlertDialog dialog = new AlertDialog.Builder(this)
+    private void showUpdateDialog(String message, final String upurl) {
+        new AlertDialog.Builder(this)
                 .setTitle("发现新版本！")
-                .setMessage(uplog)
+                .setMessage(message)
                 .setIcon(R.drawable.app_gx)
-                .setCancelable(false)
+                .setCancelable(true)
                 .setPositiveButton("立即更新", (dia, which) -> {
                     Intent intent_d = new Intent(Intent.ACTION_VIEW);
                     intent_d.setData(Uri.parse(upurl));
                     startActivity(intent_d);
                 })
-                .setNeutralButton("忽略更新", null)
-                .create();
-        dialog.show();
-    }
-
-    /**
-     * 通用资源关闭方法
-     */
-    private void closeResource(Closeable resource, String resourceName) {
-        if (resource != null) {
-            try {
-                resource.close();
-            } catch (IOException e) {
-                Log.e(TAG, "关闭 " + resourceName + " 失败", e);
-            }
-        }
+                .setNegativeButton("忽略更新", null)
+                .show();
     }
 
     // 获取当前程序版本号
@@ -269,129 +241,26 @@ public class SettingActivity extends AppCompatActivity {
         return "未知版本";
     }
 
-    /**
-     * 检查应用版本更新
-     * @return true 表示有新版本，false 表示已是最新版本或检查失败
-     */
-    public boolean App() {
-        HttpURLConnection httpConn = null;
-        DataOutputStream dos = null;
-        BufferedReader responseReader = null;
-
-        try {
-            // TODO: 建议升级为 HTTPS
-            String urlPath = "http://w.t3yanzheng.com/A729B02347E855EC";
-
-            // 当前软件版本号
-            String versionCode = getAppVersionCode();
-            if (versionCode == null || versionCode.isEmpty()) {
-                Log.e(TAG, "获取版本号失败");
-                return false;
-            }
-
-            Version = Integer.parseInt(versionCode);
-            String param = "ver=" + URLEncoder.encode(versionCode, "UTF-8");
-
-            // 建立连接
-            httpConn = getHttpURLConnection(urlPath);
-
-            // 建立输入流，向指向的 URL 传入参数
-            dos = new DataOutputStream(httpConn.getOutputStream());
-            dos.writeBytes(param);
-            dos.flush();
-
-            // 获得响应状态
-            int resultCode = httpConn.getResponseCode();
-            if (HttpURLConnection.HTTP_OK == resultCode) {
-                StringBuilder sb = new StringBuilder();
-                String readLine;
-                responseReader = new BufferedReader(new InputStreamReader(httpConn.getInputStream(), StandardCharsets.UTF_8));
-                while ((readLine = responseReader.readLine()) != null) {
-                    sb.append(readLine).append("\n");
-                }
-
-                JSONObject data = new JSONObject(sb.toString().trim());
-
-                // 验证必要字段是否存在
-                if (!data.has("code")) {
-                    Log.e(TAG, "检查更新失败：缺少 code 字段");
-                    return false;
-                }
-
-                code = data.getInt("code");
-
-                // 只有在 code==200 时才尝试获取其他字段
-                if (code == 200) {
-                    // 安全地获取可选字段，避免崩溃
-                    ver = data.optString("ver", "");
-                    versions = data.optInt("version", 0);
-                    uplog = data.optString("uplog", "");
-                    upurl = data.optString("upurl", "");
-
-                    // 验证必要字段
-                    if (versions > 0 && versions > Version) {
-                        final String finalUplog = uplog;
-                        final String finalUpurl = upurl;
-                        runOnUiThread(() -> showUpdateDialog(finalUplog, finalUpurl));
-                        return true;
-                    }
-                } else {
-                    Log.w(TAG, "检查更新返回错误码：" + code);
-                }
-            } else {
-                Log.e(TAG, "检查更新请求失败，响应码：" + resultCode);
-            }
-        } catch (NumberFormatException e) {
-            Log.e(TAG, "版本号格式错误", e);
-        } catch (Exception e) {
-            Log.e(TAG, "检查更新发生异常", e);
-        } finally {
-            // 关闭资源
-            closeResource(dos, "DataOutputStream");
-            closeResource(responseReader, "BufferedReader");
-            if (httpConn != null) {
-                httpConn.disconnect();
-            }
-        }
-        return false;
-    }
-
-    // 检测更新
+    // 检测更新（改为查询商户自己的服务端，不再访问任何第三方域名）
     public void ver_sion(View v) {
-        new Thread(new Runnable() {
+        showLoadingDialog();
+        UpdateChecker.checkAsync(this, new UpdateChecker.Callback() {
             @Override
-            public void run() {
+            public void onResult(final boolean hasNew, final String newVersion, final String url) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        showLoadingDialog();
+                        dismissLoadingDialog();
+                        if (hasNew) {
+                            showUpdateDialog("最新版本 V" + newVersion + "\n点击「立即更新」下载安装", url);
+                        } else {
+                            Toast.makeText(SettingActivity.this,
+                                    "已经是最新版本 V" + getAppVersionName(), Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
-
-                try {
-                    final boolean result = App();
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            dismissLoadingDialog();
-                            if (!result) {
-                                Toast.makeText(SettingActivity.this, "已经是最新版本", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-                } catch (final Exception e) {
-                    Log.e(TAG, "检查更新失败", e);
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            dismissLoadingDialog();
-                            Toast.makeText(SettingActivity.this, "检查更新失败", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
             }
-        }).start();
+        });
     }
 
     private void showLoadingDialog() {
@@ -408,49 +277,6 @@ public class SettingActivity extends AppCompatActivity {
         if (loadingDialog != null && loadingDialog.isShowing()) {
             loadingDialog.dismiss();
         }
-    }
-
-    /**
-     * 获取网页 HTML 内容
-     * @param path 网页地址
-     * @return HTML 内容
-     * @throws Exception 网络异常
-     */
-    public String getHtml(String path) throws Exception {
-        URL url = new URL(path);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setConnectTimeout(HTTP_TIMEOUT);
-
-        InputStream inStream = null;
-        try {
-            inStream = conn.getInputStream();
-            byte[] data = readInputStream(inStream);
-            return new String(data, StandardCharsets.UTF_8);
-        } finally {
-            if (inStream != null) {
-                try {
-                    inStream.close();
-                } catch (IOException e) {
-                    Log.w(TAG, "关闭输入流失败", e);
-                }
-            }
-        }
-    }
-
-    // 读取输入流 获取 HTML 二进制数组
-    public byte[] readInputStream(InputStream inStream) throws Exception {
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int len;
-        try {
-            while ((len = inStream.read(buffer)) != -1) {
-                outStream.write(buffer, 0, len);
-            }
-        } finally {
-            outStream.close();
-        }
-        return outStream.toByteArray();
     }
 
     // 问题反馈（跳转到 GitHub Issues）
